@@ -44,6 +44,7 @@ class Command(BaseCommand):
         self.ftp_server = settings.BACKUP_FTP_SERVER
         self.ftp_username = settings.BACKUP_FTP_USERNAME
         self.ftp_password = settings.BACKUP_FTP_PASSWORD
+        self.private_key = getattr(settings, 'BACKUP_FTP_PRIVATE_KEY', None)
         self.restore_media = options.get('media')
         self.directory_to_backup = getattr(settings, 'DIRECTORY_TO_BACKUP', settings.MEDIA_ROOT)
 
@@ -105,7 +106,13 @@ class Command(BaseCommand):
         '''
         get the ssh connection to the remote server.
         '''
-        return ssh.Connection(host=self.ftp_server, username=self.ftp_username, password=self.ftp_password)
+        if getattr(self, '_ssh', None):
+            return self._ssh
+        if self.private_key:
+            self._ssh = ssh.Connection(host=self.ftp_server, username=self.ftp_username, password=None, private_key=self.private_key)
+        else:
+            self._ssh = ssh.Connection(host=self.ftp_server, username=self.ftp_username, password=self.ftp_password)
+        return self._ssh
 
     def uncompress(self, file):
         cmd = 'cd %s;gzip -df %s' % (self.tempdir, file)
