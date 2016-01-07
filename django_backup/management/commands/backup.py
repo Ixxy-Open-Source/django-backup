@@ -82,9 +82,7 @@ def reserve_interval(backups, type, num):
         for backup in backups:
             if between_interval(backup, interval_start, interval_end):
                 result.append(backup)
-                # we need to remove the constraint below or sometimes we remove the 'current' rsync backup, which would cause
-                # rsync backup to be a lot slower than it needed to be. 
-                # break  # reserve only one backup per interval
+                break  # reserve only one backup per interval
         interval_end = interval_end - delta
         interval_start = interval_start - delta
     return result
