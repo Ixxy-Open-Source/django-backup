@@ -193,6 +193,9 @@ class Command(BaseCommand):
         self.private_key = getattr(settings, 'BACKUP_FTP_PRIVATE_KEY', None)
         self.directory_to_backup = getattr(settings, 'DIRECTORY_TO_BACKUP', settings.MEDIA_ROOT)
         self.rsyncnosymlink = getattr(settings, 'BACKUP_DISABLE_RSYNC_SYMLINK', False)  # Disable symlink directories when doing rsync backup
+        # convert remote dir to absolute path if necessary
+        if not self.remote_dir.startswith('/') and self.ftp_username:
+            self.remote_dir = '/home/%s/%s' % (self.ftp_username, self.remote_dir)
 
         if self.clean_rsync:
             print 'cleaning broken rsync backups'
