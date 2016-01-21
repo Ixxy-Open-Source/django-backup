@@ -1,3 +1,7 @@
+
+LEGACY VERSION - Please use https://github.com/django-backup/django-backup
+========================================
+
 django-backup
 =============
 http://github.com/andybak/django-backup
