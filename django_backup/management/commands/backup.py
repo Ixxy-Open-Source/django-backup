@@ -545,7 +545,7 @@ class Command(BaseCommand):
             local_info.update({'rsync_options': rsync_options, })
             local_rsync_cmd = 'rsync %(rsync_options)s --link-dest=%(local_current_backup)s %(all_directories)s %(local_backup_target)s' % local_info
             local_mark_cmd = 'touch %(local_backup_target)s/%(rsync_flag)s' % local_info
-            local_link_cmd = 'rm -f %(local_current_backup)s && ln -s %(local_backup_target)s %(local_current_backup)s' % local_info
+            local_link_cmd = 'rm %(local_current_backup)s; ln -s %(local_backup_target)s %(local_current_backup)s' % local_info
             cmd = '\n'.join(['%s&&%s' % (local_rsync_cmd, local_mark_cmd), local_link_cmd])
             print cmd
             os.system(cmd)
@@ -566,7 +566,7 @@ class Command(BaseCommand):
             remote_info.update({'rsync_options': rsync_options, })
             remote_rsync_cmd = 'rsync %(rsync_options)s --link-dest=%(remote_current_backup)s %(all_directories)s %(host)s:%(remote_backup_target)s' % remote_info
             remote_mark_cmd = 'ssh %(host)s "touch %(remote_backup_target)s/%(rsync_flag)s"' % remote_info
-            remote_link_cmd = 'ssh %(host)s "rm -f %(remote_current_backup)s && ln -s %(remote_backup_target)s %(remote_current_backup)s"' % remote_info
+            remote_link_cmd = 'ssh %(host)s "rm %(remote_current_backup)s; ln -s %(remote_backup_target)s %(remote_current_backup)s"' % remote_info
             cmd = '\n'.join(['%s&&%s' % (remote_rsync_cmd, remote_mark_cmd), remote_link_cmd])
             print cmd
             sftp = self.get_connection()
@@ -597,6 +597,19 @@ class Command(BaseCommand):
         print full_cmd
         sftp.execute(full_cmd)
 
+        # after we clean the backups, recreate the "current" symlink.
+        backups = [i.strip() for i in sftp.execute('ls %s' % self.remote_dir)]
+        backups = list(filter(is_media_backup, backups))
+        backups.sort()
+        if backups:
+            host = '%s@%s' % (self.ftp_username, self.ftp_server)
+            current_link = os.path.join(self.remote_dir, 'current')
+            latest_backup = os.path.join(self.remote_dir, backups[-1])
+            remote_info = dict(current_link=current_link, latest_backup=latest_backup, host=host)
+            remote_link_cmd = 'ssh %(host)s "rm %(current_link)s; ln -s %(latest_backup)s %(current_link)s"' % remote_info
+            print remote_link_cmd
+            os.system(remote_link_cmd)
+
     def clean_local_broken_rsync(self):
         # local(web server)
         backups = os.listdir(self.backup_dir)
@@ -612,3 +625,16 @@ class Command(BaseCommand):
         full_cmd = '\n'.join(commands)
         print full_cmd
         os.system(full_cmd)
+
+        # after we clean the backups, recreate the "current" symlink.
+        backups = os.listdir(self.backup_dir)
+        backups = list(filter(is_media_backup, backups))
+        backups.sort()
+        if backups:
+            current_link = os.path.join(self.backup_dir, 'current')
+            latest_backup = os.path.join(self.backup_dir, backups[-1])
+            info = dict(current_link=current_link, latest_backup=latest_backup)
+            link_cmd = 'rm %(current_link)s; ln -s %(latest_backup)s %(current_link)s' % info
+            print link_cmd
+            os.system(link_cmd)
+
